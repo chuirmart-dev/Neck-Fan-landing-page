@@ -1,0 +1,8 @@
+name = "neckbreeze-store"
+compatibility_date = "2024-04-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "neckbreeze-db"
+database_id = "a9fb7d64-6d58-4748-a9a9-46da1c869310"

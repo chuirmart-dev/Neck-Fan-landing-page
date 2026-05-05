@@ -25,25 +25,9 @@ import {
   RefreshCcw,
   ArrowRight
 } from 'lucide-react';
-import { 
-  onAuthStateChanged, 
-  signInWithPopup, 
-  signOut, 
-  User 
-} from 'firebase/auth';
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  serverTimestamp, 
-  query, 
-  orderBy,
-  getDoc
-} from 'firebase/firestore';
-import { auth, db, googleProvider, handleFirestoreError, OperationType } from './lib/firebase';
+import { supabase, type SupabaseOrder, type SupabaseProduct } from './lib/supabase';
+import { apiService } from './services/apiService';
+import type { User } from '@supabase/supabase-js';
 
 // --- Components ---
 
@@ -76,7 +60,13 @@ const Navbar = ({ onOpenAdmin }: { onOpenAdmin: () => void }) => {
           >
             Admin
           </button>
-          <button className="bg-slate-900 text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-slate-800 transition-all shadow-lg hover:shadow-arctic-200">
+          <button 
+            onClick={() => {
+              const el = document.getElementById('order');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            className="bg-slate-900 text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-slate-800 transition-all shadow-lg hover:shadow-arctic-200"
+          >
             Order Now
           </button>
         </div>
@@ -138,7 +128,13 @@ const Hero = () => {
             Ultra-light, USB rechargeable, and whisper-quiet — the perfect companion for the intense heat waves in Bangladesh. Experience personal cooling like never before.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mb-10">
-            <button className="bg-arctic-500 text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-arctic-600 transition-all flex items-center justify-center gap-2 group shadow-xl shadow-arctic-200/50 cursor-pointer">
+            <button 
+              onClick={() => {
+                const el = document.getElementById('order');
+                el?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="bg-arctic-500 text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-arctic-600 transition-all flex items-center justify-center gap-2 group shadow-xl shadow-arctic-200/50 cursor-pointer"
+            >
               Order Yours Now <ChevronRight className="group-hover:translate-x-1 transition-transform" />
             </button>
             <div className="flex items-center gap-3 px-4 py-2 border border-slate-200 rounded-xl bg-slate-50/50">
@@ -393,7 +389,13 @@ const OfferSection = () => {
                   <span className="text-2xl text-white/30 line-through">৳1,800</span>
                 </div>
               </div>
-              <button className="w-full md:w-auto bg-white text-slate-900 px-10 py-5 rounded-2xl text-lg font-bold hover:bg-arctic-50 transition-all shadow-xl shadow-white/5">
+              <button 
+                onClick={() => {
+                  const el = document.getElementById('order');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full md:w-auto bg-white text-slate-900 px-10 py-5 rounded-2xl text-lg font-bold hover:bg-arctic-50 transition-all shadow-xl shadow-white/5"
+              >
                 Order via COD
               </button>
             </div>
@@ -449,21 +451,33 @@ const OrderForm = () => {
     setIsSubmitting(true);
     
     try {
-      const orderData = {
-        customerName: formData.name,
-        address: formData.address,
+      const customerData = {
+        full_name: formData.name,
         phone: formData.phone,
-        status: 'pending',
-        total: 1450,
-        createdAt: serverTimestamp()
+        address_line: formData.address,
+        district: 'Not Specified'
       };
-      
-      const docRef = await addDoc(collection(db, 'orders'), orderData);
-      setOrderId(docRef.id);
-      setIsSubmitted(true);
-      console.log('Order Submitted to Firestore:', docRef.id);
+
+      const orderData = {
+        status: 'pending',
+        payment_method: 'cod',
+        subtotal: 1450,
+        total_amount: 1450,
+        ordered_at: new Date().toISOString()
+      };
+
+      // Use ApiService which handles D1 primary and Supabase secondary
+      const result = await apiService.submitOrder(customerData, orderData);
+
+      if (result.success) {
+        setOrderId(result.orderId);
+        setIsSubmitted(true);
+      } else {
+        throw new Error('Order submission failed');
+      }
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'orders');
+      console.error('Order Error:', error);
+      alert('অর্ডার করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।');
     } finally {
       setIsSubmitting(false);
     }
@@ -594,20 +608,256 @@ const OrderForm = () => {
   );
 };
 
+const ProductManagement = () => {
+  const [products, setProducts] = useState<SupabaseProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Partial<SupabaseProduct> | null>(null);
+
+  const fetchProducts = async () => {
+    setIsLoading(true);
+    try {
+      const data = await apiService.getProducts();
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Fetch Products Error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+
+    try {
+      const productData = {
+        ...editingProduct,
+        slug: editingProduct.slug || editingProduct.name?.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+        price: Number(editingProduct.price),
+        stock_count: Number(editingProduct.stock_count),
+        is_active: true
+      };
+
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      await apiService.saveProduct(productData, sessionToken);
+      
+      setIsModalOpen(false);
+      setEditingProduct(null);
+      fetchProducts();
+    } catch (error) {
+      console.error('Save Product Error:', error);
+      alert('Failed to save product.');
+    }
+  };
+
+  const deleteProduct = async (id: string) => {
+    if (!confirm('Delete this product?')) return;
+    try {
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      await apiService.deleteProduct(id, sessionToken);
+      fetchProducts();
+    } catch (error) {
+      console.error('Delete Product Error:', error);
+      alert('পণ্য ডিলিট করা সম্ভব হয়নি।');
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
+        <div>
+          <h2 className="font-bold text-xl">Product Catalog</h2>
+          <p className="text-sm text-slate-400">Manage your store inventory and pricing.</p>
+        </div>
+        <button 
+          onClick={() => { setEditingProduct({ name: '', price: 0, stock_count: 0 }); setIsModalOpen(true); }}
+          className="bg-arctic-500 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-arctic-100 hover:bg-arctic-600 transition-all flex items-center gap-2"
+        >
+          <Plus size={18} /> Add New Product
+        </button>
+      </div>
+
+      <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
+        {isLoading ? (
+          <div className="p-20 text-center text-slate-400">Loading products...</div>
+        ) : products.length === 0 ? (
+          <div className="p-20 text-center text-slate-400">No products found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-50">
+                  <th className="px-6 py-4">Product</th>
+                  <th className="px-6 py-4">Price</th>
+                  <th className="px-6 py-4">Stock</th>
+                  <th className="px-6 py-4">Slug</th>
+                  <th className="px-6 py-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {products.map((p) => (
+                  <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-50">
+                          {p.image_url ? (
+                            <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300">
+                               <ShoppingBag size={20} />
+                            </div>
+                          )}
+                        </div>
+                        <p className="font-bold text-slate-900">{p.name}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 font-mono text-sm font-bold">৳{p.price}</td>
+                    <td className="px-6 py-5 uppercase">
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold ${p.stock_count > 10 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {p.stock_count} In Stock
+                      </span>
+                    </td>
+                    <td className="px-6 py-5 text-xs text-slate-400 font-mono">/{p.slug}</td>
+                    <td className="px-6 py-5">
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => { setEditingProduct(p); setIsModalOpen(true); }}
+                          className="p-2 text-slate-400 hover:text-arctic-500 hover:bg-arctic-50 rounded-lg transition-all"
+                        >
+                          <Edit size={16} />
+                        </button>
+                        <button 
+                          onClick={() => deleteProduct(p.id!)}
+                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Modal */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+              onClick={() => setIsModalOpen(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-[2.5rem] shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-2xl font-display font-bold">{editingProduct?.id ? 'Edit Product' : 'Add New Product'}</h3>
+                <button onClick={() => setIsModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-900"><X size={24} /></button>
+              </div>
+              <form onSubmit={handleSaveProduct} className="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Product Name</label>
+                  <input 
+                    required
+                    value={editingProduct?.name || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct!, name: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-arctic-500 outline-none"
+                    placeholder="e.g. Ultra Cool Neck Fan Pro"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Image URL</label>
+                  <input 
+                    value={editingProduct?.image_url || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct!, image_url: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-arctic-500 outline-none"
+                    placeholder="https://images.unsplash.com/..."
+                  />
+                  {editingProduct?.image_url && (
+                    <div className="mt-2 w-20 h-20 rounded-lg border border-slate-100 overflow-hidden">
+                      <img src={editingProduct.image_url} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Price (BDT)</label>
+                    <input 
+                      type="number"
+                      required
+                      value={editingProduct?.price || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct!, price: Number(e.target.value) })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-arctic-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Stock Count</label>
+                    <input 
+                      type="number"
+                      required
+                      value={editingProduct?.stock_count || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct!, stock_count: Number(e.target.value) })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-arctic-500 outline-none"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Slug (Auto-generated if empty)</label>
+                  <input 
+                    value={editingProduct?.slug || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct!, slug: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-arctic-500 outline-none font-mono text-xs"
+                    placeholder="ultra-cool-fan"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">Description</label>
+                  <textarea 
+                    value={editingProduct?.description || ''}
+                    onChange={(e) => setEditingProduct({ ...editingProduct!, description: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-arctic-500 outline-none min-h-[100px]"
+                    placeholder="Short product details..."
+                  />
+                </div>
+                <button type="submit" className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl">
+                   Save Product
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) => {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<SupabaseOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'orders' | 'products'>('orders');
 
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(q);
-      const ordersData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setOrders(ordersData);
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const data = await apiService.getOrders(sessionToken);
+      setOrders(data as SupabaseOrder[]);
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'orders');
+      console.error('Fetch Orders Error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -619,21 +869,24 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const orderRef = doc(db, 'orders', orderId);
-      await updateDoc(orderRef, { status });
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      await apiService.updateOrderStatus(orderId, status, sessionToken);
       fetchOrders();
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+      console.error('Update Status Error:', error);
+      alert('স্ট্যাটাস আপডেট করা সম্ভব হয়নি।');
     }
   };
 
   const deleteOrder = async (orderId: string) => {
     if (!confirm('Are you sure you want to delete this order?')) return;
     try {
-      await deleteDoc(doc(db, 'orders', orderId));
+      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      await apiService.deleteOrder(orderId, sessionToken);
       fetchOrders();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `orders/${orderId}`);
+       console.error('Delete Order Error:', error);
+       alert('অর্ডার ডিলিট করা সম্ভব হয়নি।');
     }
   };
 
@@ -692,7 +945,7 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
                    <thead>
                      <tr className="bg-slate-50/50 text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-50">
                        <th className="px-6 py-4">Customer</th>
-                       <th className="px-6 py-4">Contact</th>
+                       <th className="px-6 py-4">Items</th>
                        <th className="px-6 py-4">Status</th>
                        <th className="px-6 py-4">Total</th>
                        <th className="px-6 py-4">Actions</th>
@@ -702,11 +955,21 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
                      {orders.map((order) => (
                        <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
                          <td className="px-6 py-5">
-                            <p className="font-bold text-slate-900">{order.customerName}</p>
-                            <p className="text-xs text-slate-400 truncate max-w-[200px]">{order.address}</p>
+                            <p className="font-bold text-slate-900">{order.customer?.full_name}</p>
+                            <p className="text-xs text-slate-500 font-medium mb-1">{order.customer?.phone}</p>
+                            <p className="text-[10px] text-slate-400 truncate max-w-[200px]">{order.customer?.address_line}</p>
                          </td>
                          <td className="px-6 py-5">
-                            <p className="text-sm font-medium">{order.phone}</p>
+                            <div className="space-y-1">
+                               {order.order_items?.map((item: any) => (
+                                 <div key={item.id} className="text-xs text-slate-600">
+                                   <span className="font-bold">{item.quantity}x</span> {item.product?.name}
+                                 </div>
+                               ))}
+                               {(!order.order_items || order.order_items.length === 0) && (
+                                 <span className="text-xs text-slate-400 italic">No items listed</span>
+                               )}
+                            </div>
                          </td>
                          <td className="px-6 py-5">
                             <select 
@@ -721,12 +984,13 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
                             >
                               <option value="pending">Pending</option>
                               <option value="confirmed">Confirmed</option>
+                              <option value="processing">Processing</option>
                               <option value="shipped">Shipped</option>
                               <option value="delivered">Delivered</option>
                               <option value="cancelled">Cancelled</option>
                             </select>
                          </td>
-                         <td className="px-6 py-5 font-mono text-sm font-bold">৳{order.total}</td>
+                         <td className="px-6 py-5 font-mono text-sm font-bold">৳{order.total_amount}</td>
                          <td className="px-6 py-5">
                             <div className="flex gap-2">
                                <button 
@@ -745,16 +1009,7 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
              )}
           </div>
         ) : (
-          <div className="bg-white p-20 rounded-[2rem] border border-slate-100 shadow-xl text-center">
-            <ShoppingBag className="mx-auto text-slate-200 mb-4" size={48} />
-            <h2 className="font-bold text-xl mb-2">Product Management</h2>
-            <p className="text-slate-400 text-sm max-w-sm mx-auto">This section is for managing the inventory. Currently optimized for the NeckBreeze signature model.</p>
-            <div className="mt-8 flex justify-center gap-4">
-               <button className="bg-arctic-500 text-white px-6 py-2 rounded-xl text-sm font-bold opacity-50 cursor-not-allowed">
-                 Add Product (Coming Soon)
-               </button>
-            </div>
-          </div>
+          <ProductManagement />
         )}
       </div>
     </div>
@@ -764,48 +1019,87 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
 export default function App() {
   const [view, setView] = useState<'main' | 'admin'>('main');
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
+  const isAdmin = user?.email?.toLowerCase().trim() === 'chuirmart@gmail.com';
+
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        // Special check for chuirmart@gmail.com
-        if (user.email === 'chuirmart@gmail.com') {
-          setIsAdmin(true);
-        } else {
-          // Check in admins collection
-          try {
-            const adminDoc = await getDoc(doc(db, 'admins', user.uid));
-            setIsAdmin(adminDoc.exists());
-          } catch {
-            setIsAdmin(false);
-          }
-        }
-      } else {
-        setIsAdmin(false);
+    if (!supabase) {
+      setIsLoadingAuth(false);
+      return;
+    }
+
+    // Check initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
+      console.log('Initial session check email:', currentUser?.email);
+      setUser(currentUser);
+      
+      // Auto-switch to admin view if user IS an admin
+      if (currentUser?.email?.toLowerCase().trim() === 'chuirmart@gmail.com') {
+        setView('admin');
       }
+      
       setIsLoadingAuth(false);
     });
-    return unsub;
+
+    // Listen for changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      console.log('Auth state changed event:', _event, 'email:', currentUser?.email);
+      setUser(currentUser);
+      
+      if (currentUser?.email?.toLowerCase().trim() === 'chuirmart@gmail.com') {
+        setView('admin');
+      }
+      
+      setIsLoadingAuth(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
   const handleAdminLogin = async () => {
+    console.log('Login button clicked');
+    setLoginError(null);
+    if (!supabase) {
+      setLoginError('Supabase is not configured properly.');
+      return;
+    }
+    setIsLoggingIn(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error(error);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.href.split('?')[0],
+          queryParams: {
+            prompt: 'select_account'
+          }
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Login Error:', error);
+      setLoginError(error.message || 'Verification failed. Please try again.');
+      setIsLoggingIn(false);
     }
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    if (supabase) {
+      await supabase.auth.signOut();
+      setUser(null);
+    }
+    setLoginError(null);
     setView('main');
   };
 
   const openAdmin = () => {
     setView('admin');
+    setLoginError(null);
     window.scrollTo(0, 0);
   };
 
@@ -821,12 +1115,29 @@ export default function App() {
             </div>
             <h2 className="text-3xl font-display font-bold mb-4">Admin Access</h2>
             <p className="text-slate-500 mb-8 leading-relaxed">Only authorized personnel can enter the management portal.</p>
+            
+            {loginError && (
+              <div className="mb-6 p-4 bg-orange-50 text-orange-700 rounded-2xl text-xs font-bold border border-orange-100 flex items-center gap-2">
+                <AlertTriangle size={16} />
+                {loginError}
+              </div>
+            )}
+
             {!user ? (
               <button 
                 onClick={handleAdminLogin}
-                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl"
+                disabled={isLoggingIn}
+                className={`w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl cursor-pointer ${isLoggingIn ? 'opacity-70 cursor-wait' : ''}`}
               >
-                <LogIn size={20} /> Sign in as Admin
+                {isLoggingIn ? (
+                  <>
+                    <RefreshCcw size={20} className="animate-spin" /> Connecting...
+                  </>
+                ) : (
+                  <>
+                    <LogIn size={20} /> Sign in as Admin
+                  </>
+                )}
               </button>
             ) : (
               <div className="space-y-4">
