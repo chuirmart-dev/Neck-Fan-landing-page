@@ -9,21 +9,54 @@ export const onRequestPost = async (context) => {
     const customerId = crypto.randomUUID();
     const orderId = crypto.randomUUID();
 
-    // D1 Transactions are done via batch
-    const batch = [
-      // Insert or update customer
+    // D1 Transactions
+    const existingCust = await env.DB.prepare("SELECT id FROM customers WHERE phone = ?").bind(customer.phone).first();
+    const actualCustId = existingCust ? existingCust.id : customerId;
+
+    const batch = [];
+    
+    if (!existingCust) {
+      batch.push(
+        env.DB.prepare(
+          "INSERT INTO customers (id, full_name, phone, address_line, district) VALUES (?, ?, ?, ?, ?)"
+        ).bind(actualCustId, customer.full_name, customer.phone, customer.address_line, customer.district || 'Not Specified')
+      );
+    } else {
+      batch.push(
+        env.DB.prepare(
+          "UPDATE customers SET full_name = ?, address_line = ?, district = ? WHERE id = ?"
+        ).bind(customer.full_name, customer.address_line, customer.district || 'Not Specified', actualCustId)
+      );
+    }
+    
+    batch.push(
       env.DB.prepare(
-        "INSERT INTO customers (id, full_name, phone, address_line, district) VALUES (?, ?, ?, ?, ?) ON CONFLICT(phone) DO UPDATE SET full_name=excluded.full_name, address_line=excluded.address_line"
-      ).bind(customerId, customer.full_name, customer.phone, customer.address_line, customer.district || 'Not Specified'),
-      
-      // Get the actual customer ID if it already existed (phone conflict handle)
-      // Note: In D1, batch is better for performance. we use the generated ID for simplicity here.
-      
-      // Insert order
-      env.DB.prepare(
-        "INSERT INTO orders (id, customer_id, subtotal, total_amount, payment_method, status) VALUES (?, (SELECT id FROM customers WHERE phone = ?), ?, ?, ?, ?)"
-      ).bind(orderId, customer.phone, orderData.subtotal, orderData.total_amount, orderData.payment_method, 'pending')
-    ];
+        "INSERT INTO orders (id, customer_id, subtotal, total_amount, payment_method, status) VALUES (?, ?, ?, ?, ?, ?)"
+      ).bind(
+        orderId, 
+        actualCustId, 
+        orderData.subtotal || orderData.total_amount, 
+        orderData.total_amount, 
+        orderData.payment_method || 'Cash on Delivery', 
+        'pending'
+      )
+    );
+
+    if (orderData.items && Array.isArray(orderData.items)) {
+      for (const item of orderData.items) {
+        batch.push(
+          env.DB.prepare(
+            "INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)"
+          ).bind(crypto.randomUUID(), orderId, item.id || item.product_id, item.quantity || 1, item.price || item.unit_price)
+        );
+      }
+    } else {
+      batch.push(
+        env.DB.prepare(
+          "INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)"
+        ).bind(crypto.randomUUID(), orderId, 'neckfan-01', 1, orderData.total_amount)
+      );
+    }
 
     await env.DB.batch(batch);
 
