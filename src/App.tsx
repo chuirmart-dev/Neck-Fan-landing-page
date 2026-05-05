@@ -23,7 +23,9 @@ import {
   LogIn,
   LogOut,
   RefreshCcw,
-  ArrowRight
+  ArrowRight,
+  KeyRound,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase, type SupabaseOrder, type SupabaseProduct } from './lib/supabase';
 import { apiService } from './services/apiService';
@@ -429,6 +431,12 @@ const Footer = () => {
            <a href="#" className="text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors">Privacy</a>
            <a href="#" className="text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors">Terms</a>
            <a href="#" className="text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-900 transition-colors">Contact</a>
+           <button 
+             onClick={() => window.dispatchEvent(new CustomEvent('open-admin'))}
+             className="text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-arctic-500 transition-colors"
+           >
+             Admin Access
+           </button>
         </div>
         <p className="text-[10px] uppercase tracking-[0.2em] text-slate-300 font-bold">© 2024 NeckBreeze. All rights reserved.</p>
       </div>
@@ -643,7 +651,9 @@ const ProductManagement = () => {
         is_active: true
       };
 
-      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const sessionToken = supabase 
+        ? (await supabase.auth.getSession()).data.session?.access_token 
+        : 'dev-preview-token';
       await apiService.saveProduct(productData, sessionToken);
       
       setIsModalOpen(false);
@@ -658,7 +668,9 @@ const ProductManagement = () => {
   const deleteProduct = async (id: string) => {
     if (!confirm('Delete this product?')) return;
     try {
-      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const sessionToken = supabase 
+        ? (await supabase.auth.getSession()).data.session?.access_token 
+        : 'dev-preview-token';
       await apiService.deleteProduct(id, sessionToken);
       fetchProducts();
     } catch (error) {
@@ -853,7 +865,9 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
   const fetchOrders = async () => {
     setIsLoading(true);
     try {
-      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const sessionToken = supabase 
+        ? (await supabase.auth.getSession()).data.session?.access_token 
+        : 'dev-preview-token';
       const data = await apiService.getOrders(sessionToken);
       setOrders(data as SupabaseOrder[]);
     } catch (error) {
@@ -869,7 +883,9 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     try {
-      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const sessionToken = supabase 
+        ? (await supabase.auth.getSession()).data.session?.access_token 
+        : 'dev-preview-token';
       await apiService.updateOrderStatus(orderId, status, sessionToken);
       fetchOrders();
     } catch (error) {
@@ -881,7 +897,9 @@ const AdminPanel = ({ user, onLogout }: { user: User, onLogout: () => void }) =>
   const deleteOrder = async (orderId: string) => {
     if (!confirm('Are you sure you want to delete this order?')) return;
     try {
-      const sessionToken = (await supabase.auth.getSession()).data.session?.access_token;
+      const sessionToken = supabase 
+        ? (await supabase.auth.getSession()).data.session?.access_token 
+        : 'dev-preview-token';
       await apiService.deleteOrder(orderId, sessionToken);
       fetchOrders();
     } catch (error) {
@@ -1056,17 +1074,34 @@ export default function App() {
       setIsLoadingAuth(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Listen for custom open-admin event from footer
+    const handleOpenAdmin = () => openAdmin();
+    window.addEventListener('open-admin', handleOpenAdmin);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('open-admin', handleOpenAdmin);
+    };
   }, []);
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [pinInput, setPinInput] = useState('');
 
   const handleAdminLogin = async () => {
     console.log('Login button clicked');
     setLoginError(null);
     if (!supabase) {
-      setLoginError('Supabase is not configured properly.');
+      if (pinInput === '1234') {
+        setUser({ 
+          email: 'chuirmart@gmail.com', 
+          id: 'dev-admin',
+          user_metadata: { full_name: 'Store Admin' } 
+        } as any);
+        setView('admin');
+        return;
+      }
+      setLoginError('পিন (PIN) ভুল হয়েছে। ১২৩৪ ব্যবহার করুন।');
       return;
     }
     setIsLoggingIn(true);
@@ -1114,20 +1149,42 @@ export default function App() {
                <ShieldCheck size={40} />
             </div>
             <h2 className="text-3xl font-display font-bold mb-4">Admin Access</h2>
-            <p className="text-slate-500 mb-8 leading-relaxed">Only authorized personnel can enter the management portal.</p>
+            <p className="text-slate-500 mb-10 leading-relaxed">Only authorized personnel can enter the management portal.</p>
             
             {loginError && (
-              <div className="mb-6 p-4 bg-orange-50 text-orange-700 rounded-2xl text-xs font-bold border border-orange-100 flex items-center gap-2">
+              <div className="mb-6 p-4 bg-orange-50 text-orange-700 rounded-2xl text-xs font-bold border border-orange-100 flex items-center justify-center gap-2">
                 <AlertTriangle size={16} />
                 {loginError}
+              </div>
+            )}
+
+            {!supabase && (
+              <div className="mb-8 space-y-4">
+                <div className="p-4 bg-blue-50 text-blue-700 rounded-2xl text-xs font-bold border border-blue-100 flex flex-col items-center gap-2 text-center">
+                  <LayoutDashboard size={20} className="mb-1" />
+                  প্রিভিউ মোড: নিচ পিন (১২৩৪) ব্যবহার করুন।
+                </div>
+                <div className="relative">
+                  <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                  <input 
+                    type="password"
+                    placeholder="পিন কোড লিখুন"
+                    value={pinInput}
+                    onChange={(e) => {
+                      setPinInput(e.target.value);
+                      setLoginError(null);
+                    }}
+                    className="w-full bg-slate-50 border border-slate-200 py-4 pl-12 pr-4 rounded-2xl font-bold focus:outline-none focus:ring-2 focus:ring-arctic-500/20 focus:border-arctic-500 transition-all text-center tracking-[0.5em] text-xl"
+                  />
+                </div>
               </div>
             )}
 
             {!user ? (
               <button 
                 onClick={handleAdminLogin}
-                disabled={isLoggingIn}
-                className={`w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl cursor-pointer ${isLoggingIn ? 'opacity-70 cursor-wait' : ''}`}
+                disabled={isLoggingIn || (!supabase && pinInput.length === 0)}
+                className={`w-full bg-slate-900 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl cursor-pointer ${isLoggingIn || (!supabase && pinInput.length === 0) ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                 {isLoggingIn ? (
                   <>
@@ -1135,7 +1192,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    <LogIn size={20} /> Sign in as Admin
+                    <LogIn size={20} /> {supabase ? 'Sign in with Google' : 'Login to Admin'}
                   </>
                 )}
               </button>
@@ -1146,17 +1203,18 @@ export default function App() {
                 </div>
                 <button 
                   onClick={handleLogout}
-                  className="w-full border border-slate-200 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50"
+                  className="w-full border border-slate-200 py-4 rounded-2xl font-bold text-slate-500 hover:bg-slate-50 transition-colors"
                 >
-                  Switch Account
+                  Logout
                 </button>
               </div>
             )}
+            
             <button 
               onClick={() => setView('main')}
-              className="mt-8 text-sm font-bold text-arctic-500 flex items-center justify-center gap-2 mx-auto"
+              className="mt-8 text-slate-400 text-sm font-bold flex items-center justify-center gap-2 hover:text-slate-600 transition-colors mx-auto"
             >
-              Back to Store <ArrowRight size={14} />
+               <ArrowLeft size={16} /> Back to Store
             </button>
           </div>
         </div>

@@ -14,26 +14,11 @@ const safeJson = async (response: Response) => {
 export const apiService = {
   // Products
   async getProducts() {
-    try {
-      const response = await fetch(`${API_BASE}/products`);
-      if (response.ok) {
-        return await safeJson(response);
-      }
-      // AI Studio-তে /api কাজ না করলে ডিফল্ট ডাটা রিটার্ন করি যাতে প্রিভিউ দেখা যায়
-      if (response.status === 404) {
-        console.warn('API not found, using preview data.');
-        return [
-          { id: 'p1', name: 'NeckBreeze Pro', price: 1450, stock_count: 10, is_active: 1, image_url: 'https://images.unsplash.com/photo-1619362224246-7d6847481831?w=800' }
-        ];
-      }
-      throw new Error('Cloudflare D1-তে ডাটা পাওয়া যায়নি।');
-    } catch (err: any) {
-      console.error('D1 Fetch Error:', err);
-      // Fallback for AIS preview
-      return [
-        { id: 'p1', name: 'NeckBreeze Pro (Preview Mode)', price: 1450, stock_count: 5, is_active: 1 }
-      ];
+    const response = await fetch(`${API_BASE}/products`);
+    if (response.ok) {
+      return await safeJson(response);
     }
+    throw new Error('পণ্য লোড করা সম্ভব হয়নি।');
   },
 
   async saveProduct(product: any, sessionToken?: string) {
@@ -61,29 +46,18 @@ export const apiService = {
 
   // Orders
   async submitOrder(customer: any, order: any) {
-    try {
-      const response = await fetch(`${API_BASE}/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ customer, order })
-      });
-      
-      const data = await safeJson(response);
-      if (!response.ok) {
-        // AI Studio fallback for submission testing
-        if (response.status === 404) {
-          console.warn('AIS Preview: Success simulated (API 404)');
-          return { success: true, orderId: 'AIS-' + Date.now() };
-        }
-        throw new Error(data.error || 'অর্ডার সাবমিট করা সম্ভব হয়নি।');
-      }
-      
-      return data;
-    } catch (err) {
-      console.error('D1 Order submission failed:', err);
-      // Fallback for simulation
-      return { success: true, orderId: 'LOCAL-' + Date.now() };
+    const response = await fetch(`${API_BASE}/orders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customer, order })
+    });
+    
+    const data = await safeJson(response);
+    if (!response.ok) {
+      throw new Error(data.error || 'অর্ডার সাবমিট করা সম্ভব হয়নি।');
     }
+    
+    return data;
   },
 
   async getOrders(sessionToken?: string) {
