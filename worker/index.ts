@@ -7,7 +7,7 @@ export interface Env {
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
   "Access-Control-Max-Age": "86400",
 };
 
@@ -16,7 +16,9 @@ const jsonResponse = (data: any, status = 200) => {
     status,
     headers: {
       "Content-Type": "application/json",
-      ...corsHeaders
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept",
     }
   });
 };
@@ -140,7 +142,14 @@ export default {
           // 3. Order Items
           // We need a valid product_id due to FK constraint. 
           // Let's try to find any active product to use if none sent or invalid.
-          let firstProduct: any = await env.DB.prepare("SELECT id FROM products LIMIT 1").first();
+          let firstProduct: any = await env.DB.prepare("SELECT id FROM products WHERE is_active = 1 OR is_active = '1' LIMIT 1").first();
+          
+          if (!firstProduct && orderData.items && orderData.items.length > 0) {
+             // If no products in DB but user sent items, we might fail due to FK.
+             // We should warn about this.
+             console.warn("No products found in DB. Order items might cause Foreign Key failure.");
+          }
+
           const fallbackProductId = firstProduct?.id || 'neck-fan-001';
 
           if (orderData.items && Array.isArray(orderData.items) && orderData.items.length > 0) {

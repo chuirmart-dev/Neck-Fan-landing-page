@@ -9,5 +9,5 @@ not_found_handling = "single-page-application"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "neckfan-db"
-database_id = "51d08c6f-579c-4866-9964-b0a70f3f2601"
+database_name = "chutirmart"
+database_id = "a9fb7d64-6d58-4748-a9a9-46da1c869310"
