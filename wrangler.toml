@@ -1,4 +1,4 @@
-name = "neckbreeze-store"
+name = "neck-fan-landing-page"
 compatibility_date = "2024-12-01"
 main = "worker/index.ts"
 

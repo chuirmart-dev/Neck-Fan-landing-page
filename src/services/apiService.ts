@@ -46,18 +46,26 @@ export const apiService = {
 
   // Orders
   async submitOrder(customer: any, order: any) {
-    const response = await fetch(`${API_BASE}/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ customer, order })
-    });
-    
-    const data = await safeJson(response);
-    if (!response.ok) {
-      const errorMsg = data.detail ? `${data.error || 'Error'}: ${data.detail}` : (data.error || 'অর্ডার সাবমিট করা সম্ভব হয়নি।');
-      throw new Error(errorMsg);
+    let response;
+    try {
+      response = await fetch(`${API_BASE}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customer, order })
+      });
+    } catch (fetchErr: any) {
+      console.error('Fetch error:', fetchErr);
+      throw new Error(`Network Error: ${fetchErr.message}. ইন্টারনেটে সমস্যা হতে পারে।`);
     }
     
+    if (!response.ok) {
+      const data = await safeJson(response);
+      const detail = data.detail || '';
+      const errorStr = data.error || `Server Error ${response.status}`;
+      throw new Error(`${errorStr}${detail ? ': ' + detail : ''}`);
+    }
+    
+    const data = await safeJson(response);
     return data;
   },
 

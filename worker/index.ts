@@ -117,10 +117,10 @@ export default {
           const customer = data.customer;
           const orderData = data.order;
           
-          if (!customer || !customer.phone) throw new Error("Customer phone is required");
+          if (!customer || !customer.phone) throw new Error("Customer phone is required (মোবাইল নাম্বার প্রয়োজন)");
 
-          // Ensure customer exists and get their ID
-          // We do this first to avoid FK constraint issues in the batch
+          // 1. Ensure customer exists
+          const customerId = crypto.randomUUID();
           await env.DB.prepare(`
             INSERT INTO customers (id, full_name, phone, address_line, district) 
             VALUES (?, ?, ?, ?, ?) 
@@ -128,40 +128,54 @@ export default {
               full_name=excluded.full_name, 
               address_line=excluded.address_line, 
               district=excluded.district
-          `).bind(crypto.randomUUID(), customer.full_name, customer.phone, customer.address_line, customer.district || 'Not Specified').run();
+          `).bind(customerId, customer.full_name, customer.phone, customer.address_line, customer.district || 'Not Specified').run();
           
+          // 2. Get customer ID (either the new one or existing)
           const customerRecord: any = await env.DB.prepare("SELECT id FROM customers WHERE phone = ?").bind(customer.phone).first();
+          if (!customerRecord) throw new Error("Could not retrieve customer record (কাস্টমার ডাটা পাওয়া যায়নি)");
           const actualCustId = customerRecord.id;
 
+          // 3. Ensure at least one product exists for the foreign key
+          let product: any = await env.DB.prepare("SELECT id FROM products LIMIT 1").first();
+          if (!product) {
+            console.log("No products found. Creating fallback product.");
+            const fallbackId = 'neck-fan-001';
+            await env.DB.prepare(`
+              INSERT OR IGNORE INTO products (id, name, slug, price, stock_count, is_active) 
+              VALUES (?, ?, ?, ?, ?, ?)
+            `).bind(fallbackId, 'NeckBreeze Fan', 'neckbreeze-fan', 1450, 100, 1).run();
+            product = { id: fallbackId };
+          }
+          const productId = product.id;
+
           const orderId = crypto.randomUUID();
-          const total = orderData.total_amount || 0;
+          const total = orderData.total_amount || 1450;
           const batch = [];
           
-          // 1. Order Insert
-          batch.push(env.DB.prepare("INSERT INTO orders (id, customer_id, subtotal, total_amount, payment_method, status) VALUES (?, ?, ?, ?, ?, ?)").bind(orderId, actualCustId, total, total, orderData.payment_method || 'Cash on Delivery', 'pending'));
+          // 4. Order Insert
+          batch.push(env.DB.prepare("INSERT INTO orders (id, customer_id, subtotal, total_amount, payment_method, status) VALUES (?, ?, ?, ?, ?, ?)").bind(orderId, actualCustId, total, total, orderData.payment_method || 'cod', 'pending'));
 
-          // 2. Order Items
-          // Find any active product to use as fallback
-          let firstProduct: any = await env.DB.prepare("SELECT id FROM products WHERE is_active = 1 OR is_active = '1' LIMIT 1").first();
-          const fallbackProductId = firstProduct?.id || 'neck-fan-001';
-
+          // 5. Order Items
           if (orderData.items && Array.isArray(orderData.items) && orderData.items.length > 0) {
             for (const item of orderData.items) {
-              const pId = item.id || item.product_id || fallbackProductId;
+              const pId = item.id || item.product_id || productId;
               batch.push(env.DB.prepare("INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), orderId, pId, item.quantity || 1, item.price || item.unit_price || 0));
             }
           } else {
-            batch.push(env.DB.prepare("INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), orderId, fallbackProductId, 1, 1450));
+            // Default item
+            batch.push(env.DB.prepare("INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), orderId, productId, 1, 1450));
           }
 
           await env.DB.batch(batch);
+          console.log("Order submitted successfully:", orderId);
           return jsonResponse({ success: true, orderId });
         } catch (error: any) {
-          console.error("Order POST Error:", error);
+          console.error("Order POST Error Details:", error.message, error.stack);
           return jsonResponse({ 
             error: "অর্ডার সাবমিট করা সম্ভব হয়নি।", 
             detail: error.message,
-            stack: error.stack
+            stack: error.stack,
+            at: new Date().toISOString()
           }, 500);
         }
       }
