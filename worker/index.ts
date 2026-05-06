@@ -119,53 +119,50 @@ export default {
           
           if (!customer || !customer.phone) throw new Error("Customer phone is required");
 
-          const customerId = crypto.randomUUID();
+          // Ensure customer exists and get their ID
+          // We do this first to avoid FK constraint issues in the batch
+          await env.DB.prepare(`
+            INSERT INTO customers (id, full_name, phone, address_line, district) 
+            VALUES (?, ?, ?, ?, ?) 
+            ON CONFLICT(phone) DO UPDATE SET 
+              full_name=excluded.full_name, 
+              address_line=excluded.address_line, 
+              district=excluded.district
+          `).bind(crypto.randomUUID(), customer.full_name, customer.phone, customer.address_line, customer.district || 'Not Specified').run();
+          
+          const customerRecord: any = await env.DB.prepare("SELECT id FROM customers WHERE phone = ?").bind(customer.phone).first();
+          const actualCustId = customerRecord.id;
+
           const orderId = crypto.randomUUID();
-
-          // Check for existing customer by phone
-          const existingCust: any = await env.DB.prepare("SELECT id FROM customers WHERE phone = ?").bind(customer.phone).first();
-          const actualCustId = existingCust ? existingCust.id : customerId;
-
+          const total = orderData.total_amount || 0;
           const batch = [];
           
-          // 1. Customer UPSERT
-          if (!existingCust) {
-            batch.push(env.DB.prepare("INSERT INTO customers (id, full_name, phone, address_line, district) VALUES (?, ?, ?, ?, ?)").bind(actualCustId, customer.full_name, customer.phone, customer.address_line, customer.district || 'Not Specified'));
-          } else {
-            batch.push(env.DB.prepare("UPDATE customers SET full_name = ?, address_line = ?, district = ? WHERE id = ?").bind(customer.full_name, customer.address_line, customer.district || 'Not Specified', actualCustId));
-          }
-          
-          // 2. Order Insert
-          const total = orderData.total_amount || 0;
+          // 1. Order Insert
           batch.push(env.DB.prepare("INSERT INTO orders (id, customer_id, subtotal, total_amount, payment_method, status) VALUES (?, ?, ?, ?, ?, ?)").bind(orderId, actualCustId, total, total, orderData.payment_method || 'Cash on Delivery', 'pending'));
 
-          // 3. Order Items
-          // We need a valid product_id due to FK constraint. 
-          // Let's try to find any active product to use if none sent or invalid.
+          // 2. Order Items
+          // Find any active product to use as fallback
           let firstProduct: any = await env.DB.prepare("SELECT id FROM products WHERE is_active = 1 OR is_active = '1' LIMIT 1").first();
-          
-          if (!firstProduct && orderData.items && orderData.items.length > 0) {
-             // If no products in DB but user sent items, we might fail due to FK.
-             // We should warn about this.
-             console.warn("No products found in DB. Order items might cause Foreign Key failure.");
-          }
-
           const fallbackProductId = firstProduct?.id || 'neck-fan-001';
 
           if (orderData.items && Array.isArray(orderData.items) && orderData.items.length > 0) {
             for (const item of orderData.items) {
-              batch.push(env.DB.prepare("INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), orderId, item.id || item.product_id || fallbackProductId, item.quantity || 1, item.price || item.unit_price || 0));
+              const pId = item.id || item.product_id || fallbackProductId;
+              batch.push(env.DB.prepare("INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), orderId, pId, item.quantity || 1, item.price || item.unit_price || 0));
             }
           } else {
-            // Default product if none provided
-            batch.push(env.DB.prepare("INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), orderId, fallbackProductId, 1, total));
+            batch.push(env.DB.prepare("INSERT INTO order_items (id, order_id, product_id, quantity, unit_price) VALUES (?, ?, ?, ?, ?)").bind(crypto.randomUUID(), orderId, fallbackProductId, 1, 1450));
           }
 
           await env.DB.batch(batch);
           return jsonResponse({ success: true, orderId });
         } catch (error: any) {
           console.error("Order POST Error:", error);
-          return jsonResponse({ error: error.message, detail: error.toString() }, 500);
+          return jsonResponse({ 
+            error: "অর্ডার সাবমিট করা সম্ভব হয়নি।", 
+            detail: error.message,
+            stack: error.stack
+          }, 500);
         }
       }
 

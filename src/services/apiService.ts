@@ -54,7 +54,8 @@ export const apiService = {
     
     const data = await safeJson(response);
     if (!response.ok) {
-      throw new Error(data.error || 'অর্ডার সাবমিট করা সম্ভব হয়নি।');
+      const errorMsg = data.detail ? `${data.error || 'Error'}: ${data.detail}` : (data.error || 'অর্ডার সাবমিট করা সম্ভব হয়নি।');
+      throw new Error(errorMsg);
     }
     
     return data;
