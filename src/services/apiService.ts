@@ -1,4 +1,5 @@
-// Cloudflare D1 API endpoints
+// Use relative path by default, but fallback to absolute if needed.
+// In Cloudflare Pages, /api should be intercepted by the worker.
 const API_BASE = '/api';
 
 const safeJson = async (response: Response) => {
@@ -46,9 +47,10 @@ export const apiService = {
 
   // Orders
   async submitOrder(customer: any, order: any) {
+    const url = `${window.location.origin}${API_BASE}/orders`;
     let response;
     try {
-      response = await fetch(`${API_BASE}/orders`, {
+      response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customer, order })
@@ -58,6 +60,10 @@ export const apiService = {
       throw new Error(`Network Error: ${fetchErr.message}. ইন্টারনেটে সমস্যা হতে পারে।`);
     }
     
+    if (response.status === 405) {
+      throw new Error(`Server Error 405: Method Not Allowed. এটি মূলত সার্ভারের কনফিগারেশন বা রাউটিং সমস্যার কারণে হয়। URL: ${url}`);
+    }
+
     if (!response.ok) {
       const data = await safeJson(response);
       const detail = data.detail || '';

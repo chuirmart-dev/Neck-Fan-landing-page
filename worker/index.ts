@@ -34,23 +34,20 @@ export default {
 
     // Database health check / missing table handle
     if (!env.DB) {
-      return jsonResponse({ error: "D1 Database binding 'DB' is missing. Please check your wrangler.toml and Cloudflare Dash." }, 500);
+      console.error("D1 Database binding missing");
+      return jsonResponse({ error: "D1 Database binding 'DB' is missing." }, 500);
     }
 
-    // Check if tables exist (quick check on products table)
-    try {
-      await env.DB.prepare("SELECT 1 FROM products LIMIT 1").first();
-    } catch (e: any) {
-      if (e.message.includes("no such table")) {
-        return jsonResponse({ 
-          error: "Database tables not found. Please run your 'schema.sql' against your D1 database.",
-          hint: "npx wrangler d1 execute neckfan-db --file=./schema.sql --remote"
-        }, 500);
-      }
+    const path = url.pathname.replace(/\/$/, ""); 
+    console.log(`[Worker] Method: ${request.method}, Path: ${path}`);
+
+    // CORS Preflight handling
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: corsHeaders });
     }
 
     // API Routes for Products
-    if (url.pathname === "/api/products") {
+    if (path === "/api/products" || path === "/products") {
       if (request.method === "GET") {
         try {
           const { results } = await env.DB.prepare(
@@ -92,8 +89,8 @@ export default {
       }
     }
 
-    // API Routes for Orders
-    if (url.pathname === "/api/orders") {
+    // API Routes for Orders - support both /api/orders and /orders
+    if (path === "/api/orders" || path === "/orders") {
       if (request.method === "GET") {
         try {
           const { results } = await env.DB.prepare(`
@@ -206,6 +203,34 @@ export default {
     }
 
     // Serve static assets + SPA fallback
-    return env.ASSETS.fetch(request);
+    // If it starts with /api but didn't match above, return 404
+    if (path.startsWith("/api")) {
+      return jsonResponse({ 
+        error: "API Resource not found", 
+        path, 
+        method: request.method,
+        origin: request.headers.get("Origin"),
+        url: request.url,
+        availableRoutes: ["/api/products", "/api/orders"]
+      }, 404);
+    }
+    
+    // For anything else, try to serve static assets
+    // Only GET/HEAD should be passed to ASSETS
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return jsonResponse({ error: "Method not allowed for static assets", method: request.method, path }, 405);
+    }
+
+    try {
+      const response = await env.ASSETS.fetch(request);
+      if (response.status === 404) {
+         // SPA Fallback: serve index.html for unknown routes (frontend routing)
+         const indexReq = new Request(new URL("/index.html", request.url).toString());
+         return await env.ASSETS.fetch(indexReq);
+      }
+      return response;
+    } catch (e: any) {
+      return new Response(`Error fetching assets: ${e.message}`, { status: 500 });
+    }
   },
 } satisfies ExportedHandler<Env>;

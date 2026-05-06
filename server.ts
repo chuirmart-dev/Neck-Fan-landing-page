@@ -23,6 +23,10 @@ async function startServer() {
   app.use(express.json());
 
   // API Routes
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    next();
+  });
   
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', dbPath, products: db.prepare('SELECT count(*) as count FROM products').get() });
