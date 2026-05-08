@@ -27,6 +27,14 @@ import {
   KeyRound,
   ArrowLeft
 } from 'lucide-react';
+import { 
+  DotPattern, 
+  Marquee, 
+  ShinyButton, 
+  WordPullUp, 
+  BorderBeam,
+  BoxReveal
+} from './components/magic-ui';
 import { supabase, type SupabaseOrder, type SupabaseProduct } from './lib/supabase';
 import { apiService } from './services/apiService';
 import type { User } from '@supabase/supabase-js';
@@ -44,10 +52,10 @@ const Navbar = ({ onOpenAdmin }: { onOpenAdmin: () => void }) => {
   }, []);
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled || isMenuOpen ? 'bg-white/90 backdrop-blur-md border-b border-slate-100 py-3' : 'bg-transparent py-6'}`}>
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled || isMenuOpen ? 'bg-white/70 backdrop-blur-xl border-b border-slate-200/50 py-3 shadow-sm' : 'bg-transparent py-6'}`}>
       <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-arctic-500 rounded-full flex items-center justify-center text-white">
+        <div className="flex items-center gap-2 group cursor-pointer">
+          <div className="w-10 h-10 bg-arctic-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-arctic-200 group-hover:scale-110 transition-transform">
             <Wind size={24} />
           </div>
           <span className="font-display font-bold text-xl tracking-tight uppercase">NeckBreeze</span>
@@ -62,18 +70,19 @@ const Navbar = ({ onOpenAdmin }: { onOpenAdmin: () => void }) => {
           >
             Admin
           </button>
-          <button 
+          
+          <ShinyButton 
             onClick={() => {
               const el = document.getElementById('order');
               el?.scrollIntoView({ behavior: 'smooth' });
             }}
-            className="bg-slate-900 text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-slate-800 transition-all shadow-lg hover:shadow-arctic-200"
+            className="bg-slate-900 text-white shadow-xl hover:shadow-arctic-200 py-2.5"
           >
             Order Now
-          </button>
+          </ShinyButton>
         </div>
         <button 
-          className="md:hidden p-2 text-slate-900"
+          className="md:hidden p-2 text-slate-900 bg-slate-100 rounded-lg"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
         >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -112,80 +121,95 @@ const Navbar = ({ onOpenAdmin }: { onOpenAdmin: () => void }) => {
 
 const Hero = () => {
   return (
-    <section className="relative pt-32 pb-20 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+    <section className="relative pt-32 pb-24 overflow-hidden">
+      <DotPattern 
+        className="[mask-image:radial-gradient(500px_circle_at_center,white,transparent)]"
+        width={32}
+        height={32}
+      />
+      <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-arctic-50 border border-arctic-100 rounded-full text-arctic-600 text-[10px] font-bold uppercase tracking-widest mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-arctic-50 border border-arctic-200/50 rounded-full text-arctic-600 text-[10px] font-bold uppercase tracking-widest mb-6 shadow-sm">
             <div className="w-1.5 h-1.5 bg-arctic-500 rounded-full animate-pulse" />
             Limited Stock in Bangladesh
           </div>
-          <h1 className="font-display text-5xl md:text-7xl font-bold leading-[1.1] mb-6 tracking-tight">
-            Stay Cool <span className="text-arctic-500">Anywhere</span> — Hands-Free 360° Airflow
-          </h1>
-          <p className="text-lg text-slate-600 mb-8 max-w-lg leading-relaxed">
+          <BoxReveal boxColor="#0ea5e9" duration={0.5}>
+            <h1 className="font-display text-5xl md:text-7xl font-bold leading-[1.1] mb-6 tracking-tight">
+              Stay Cool <span className="text-arctic-500">Anywhere</span> — Hands-Free 360° Airflow
+            </h1>
+          </BoxReveal>
+          <p className="text-lg text-slate-600 mb-10 max-w-lg leading-relaxed">
             Ultra-light, USB rechargeable, and whisper-quiet — the perfect companion for the intense heat waves in Bangladesh. Experience personal cooling like never before.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 mb-10">
-            <button 
+          <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            <ShinyButton 
               onClick={() => {
                 const el = document.getElementById('order');
                 el?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="bg-arctic-500 text-white px-8 py-4 rounded-xl text-lg font-bold hover:bg-arctic-600 transition-all flex items-center justify-center gap-2 group shadow-xl shadow-arctic-200/50 cursor-pointer"
+              className="bg-arctic-500 text-white px-10 py-5 text-lg shadow-2xl shadow-arctic-300"
             >
-              Order Yours Now <ChevronRight className="group-hover:translate-x-1 transition-transform" />
-            </button>
-            <div className="flex items-center gap-3 px-4 py-2 border border-slate-200 rounded-xl bg-slate-50/50">
-              <Truck size={20} className="text-slate-400" />
+              Order Yours Now <ChevronRight className="inline ml-1" />
+            </ShinyButton>
+            <div className="flex items-center gap-3 px-5 py-3 border border-slate-200 rounded-2xl bg-white/50 backdrop-blur-sm">
+              <Truck size={20} className="text-arctic-500" />
               <div className="text-left">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fast Shipping</p>
-                <p className="text-xs font-semibold text-slate-600 uppercase">Cash on Delivery Available</p>
+                <p className="text-xs font-semibold text-slate-700 uppercase leading-none">Cash on Delivery</p>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4 py-4 border-t border-slate-100">
+          <div className="flex items-center gap-4 py-6 border-t border-slate-100">
             <div className="flex -space-x-2">
               {[1, 2, 3, 4].map(i => (
-                <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center">
-                   <img src={`https://picsum.photos/seed/user${i}/48/48`} className="rounded-full" referrerPolicy="no-referrer" alt="User" />
+                <div key={i} className="w-9 h-9 rounded-full border-2 border-white bg-slate-200 overflow-hidden shadow-sm">
+                   <img src={`https://picsum.photos/seed/user${i}/64/64`} className="w-full h-full object-cover" referrerPolicy="no-referrer" alt="User" />
                 </div>
               ))}
             </div>
             <p className="text-sm font-medium text-slate-500">
-              <span className="text-slate-900 font-bold">1,000+</span> happy customers across BD
+              <span className="text-slate-900 font-bold underline decoration-arctic-400 decoration-2">1,000+</span> happy customers across BD
             </p>
           </div>
         </motion.div>
 
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, scale: 0.9, rotate: -2 }}
+          whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
+          viewport={{ once: true }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="relative"
+          className="relative group"
         >
-          <div className="absolute -inset-10 bg-arctic-100/50 blur-3xl rounded-full z-0" />
-          <div className="relative z-10 bg-white p-4 rounded-3xl border border-slate-100 shadow-2xl overflow-hidden aspect-[4/5] md:aspect-square flex items-center justify-center">
+          <div className="absolute -inset-10 bg-arctic-300/20 blur-[120px] rounded-full z-0 group-hover:bg-arctic-400/30 transition-colors duration-700" />
+          <div className="relative z-10 bg-white/50 backdrop-blur-sm p-4 rounded-[3rem] border border-slate-200/50 shadow-2xl overflow-hidden aspect-[4/5] md:aspect-square flex items-center justify-center">
             <img 
-              src="https://picsum.photos/seed/neckfan_studio/800/800" 
+              src="/assets/product-detail.jpg" 
+              onError={(e) => {
+                const img = e.target as HTMLImageElement;
+                img.src = "https://images.unsplash.com/photo-1622543925917-763c34d1538c?q=80&w=800&auto=format&fit=crop"; 
+              }}
               alt="Neck Fan Product Shot" 
-              className="w-full h-full object-cover rounded-2xl"
+              className="w-full h-full object-cover rounded-[2.5rem] shadow-inner"
               referrerPolicy="no-referrer"
             />
+            <BorderBeam size={300} duration={12} colorFrom="#0ea5e9" colorTo="#38bdf8" />
+            
             {/* Overlay Badges */}
-            <div className="absolute top-8 left-8 bg-white/90 backdrop-blur px-4 py-2 rounded-2xl shadow-lg border border-white/20">
+            <div className="absolute top-10 left-10 bg-white/80 backdrop-blur px-5 py-2.5 rounded-2xl shadow-xl border border-white/50">
               <div className="flex items-center gap-2">
-                <Zap size={16} className="text-yellow-500 fill-yellow-500" />
-                <span className="text-sm font-bold uppercase tracking-tight">Bladeless Tech</span>
+                <Zap size={18} className="text-yellow-500 fill-yellow-500" />
+                <span className="text-sm font-bold uppercase tracking-wide">Bladeless Tech</span>
               </div>
             </div>
-            <div className="absolute bottom-8 right-8 bg-arctic-500/90 backdrop-blur px-4 py-2 rounded-2xl shadow-lg text-white">
+            <div className="absolute bottom-10 right-10 bg-slate-900/90 backdrop-blur px-5 py-2.5 rounded-2xl shadow-xl text-white">
               <div className="flex items-center gap-2">
-                <VolumeX size={16} />
-                <span className="text-sm font-bold uppercase tracking-tight">Whisper Quiet</span>
+                <VolumeX size={18} className="text-arctic-400" />
+                <span className="text-sm font-bold uppercase tracking-wide">Whisper Quiet</span>
               </div>
             </div>
           </div>
@@ -203,25 +227,35 @@ const ProblemSection = () => {
   ];
 
   return (
-    <section className="bg-slate-50 py-24">
-      <div className="max-w-7xl mx-auto px-6">
+    <section className="bg-slate-50 py-24 relative overflow-hidden">
+      <DotPattern 
+        className="opacity-50 [mask-image:radial-gradient(300px_circle_at_center,white,transparent)]"
+        width={24}
+        height={24}
+      />
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="mb-16 text-center max-w-2xl mx-auto">
-          <p className="text-arctic-500 font-bold uppercase tracking-widest text-xs mb-4">The Challenge</p>
-          <h2 className="text-4xl font-display font-bold mb-6">Why Suffer in Silence?</h2>
-          <p className="text-slate-500">The Bangladesh summer is unforgiving. High humidity and soaring temperatures can lead to fatigue, irritation, and decreased productivity.</p>
+          <p className="text-arctic-500 font-bold uppercase tracking-widest text-[10px] mb-4">The Challenge</p>
+          <h2 className="text-4xl md:text-5xl font-display font-bold mb-6">Why Suffer in Silence?</h2>
+          <p className="text-slate-500 leading-relaxed">The Bangladesh summer is unforgiving. High humidity and soaring temperatures can lead to fatigue, irritation, and decreased productivity.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-8">
           {problems.map((p, i) => (
             <motion.div 
               key={i}
-              whileHover={{ y: -5 }}
-              className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              whileHover={{ y: -8 }}
+              className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-xl transition-all duration-300 relative group overflow-hidden"
             >
-              <div className="w-12 h-12 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6">
-                <AlertTriangle size={24} />
+              <div className="w-14 h-14 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <AlertTriangle size={28} />
               </div>
               <h3 className="text-xl font-bold mb-4">{p.title}</h3>
               <p className="text-slate-500 text-sm leading-relaxed">{p.desc}</p>
+              <div className="absolute inset-x-0 bottom-0 h-1 bg-red-100 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
             </motion.div>
           ))}
         </div>
@@ -248,12 +282,36 @@ const SolutionSection = () => {
       <div className="max-w-7xl mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           <div className="grid grid-cols-2 gap-4">
-             <div className="aspect-[4/5] rounded-3xl overflow-hidden shadow-lg mt-12">
-               <img src="https://picsum.photos/seed/fan_use1/400/500" alt="Use case 1" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-             </div>
-             <div className="aspect-[4/5] rounded-3xl overflow-hidden shadow-lg">
-               <img src="https://picsum.photos/seed/fan_use2/400/500" alt="Use case 2" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-             </div>
+             <motion.div 
+               whileHover={{ scale: 1.05 }}
+               className="aspect-[4/5] rounded-3xl overflow-hidden shadow-lg mt-12 bg-slate-100"
+             >
+               <img 
+                src="/assets/use1.jpg" 
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  img.src = "https://images.unsplash.com/photo-1591123720164-de1348028a82?q=80&w=400&auto=format&fit=crop";
+                }}
+                alt="Use case 1" 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer" 
+               />
+             </motion.div>
+             <motion.div 
+               whileHover={{ scale: 1.05 }}
+               className="aspect-[4/5] rounded-3xl overflow-hidden shadow-lg bg-slate-100"
+             >
+               <img 
+                src="/assets/use2.jpg" 
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  img.src = "https://images.unsplash.com/photo-1621330396173-e41b1cafd17f?q=80&w=400&auto=format&fit=crop";
+                }}
+                alt="Use case 2" 
+                className="w-full h-full object-cover" 
+                referrerPolicy="no-referrer" 
+               />
+             </motion.div>
           </div>
           <div>
             <p className="text-arctic-500 font-bold uppercase tracking-widest text-xs mb-4">The Solution</p>
@@ -316,24 +374,45 @@ const SocialProof = () => {
   const reviews = [
     { name: "Rafiq A.", rating: 5, comment: "Game changer for Dhaka commute! The build quality is amazing." },
     { name: "Sumaiya K.", rating: 5, comment: "I use it in the kitchen. Very quiet and lightweight." },
-    { name: "Anisur R.", rating: 4, comment: "Battery lasts all day as promised. Value for money." }
+    { name: "Anisur R.", rating: 4, comment: "Battery lasts all day as promised. Value for money." },
+    { name: "Farhana J.", rating: 5, comment: "My hair doesn't get stuck! This is the best part." },
+    { name: "Tanvir H.", rating: 5, comment: "Cooling is really 360 degrees. Highly recommended." },
+    { name: "Mim Sultana", rating: 5, comment: "Delivery was fast. Product looks exactly like the photo." }
   ];
 
   return (
-    <section className="py-24 bg-sky-50/50">
-      <div className="max-w-7xl mx-auto px-6 text-center">
-        <h2 className="text-3xl font-display font-bold mb-16">Loved by Thousands</h2>
-        <div className="grid md:grid-cols-3 gap-8">
-          {reviews.map((r, i) => (
-            <div key={i} className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-              <div className="flex justify-center gap-1 mb-4 text-yellow-400">
-                {[...Array(r.rating)].map((_, i) => <Star key={i} size={16} fill="currentColor" />)}
+    <section className="py-24 bg-slate-50 overflow-hidden relative">
+      <div className="max-w-7xl mx-auto px-6 text-center mb-16">
+        <p className="text-arctic-500 font-bold uppercase tracking-[0.2em] text-xs mb-4">Customer Trust</p>
+        <h2 className="text-4xl md:text-5xl font-display font-bold">Loved by Thousands</h2>
+      </div>
+      
+      <div className="relative flex flex-col items-center justify-center overflow-hidden">
+        <Marquee pauseOnHover className="[--duration:20s]">
+          {reviews.slice(0, 3).map((r, i) => (
+            <div key={i} className="flex-shrink-0 w-[300px] bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 mx-4">
+              <div className="flex gap-1 mb-4 text-yellow-400">
+                {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < r.rating ? "currentColor" : "none"} className={i < r.rating ? "" : "text-slate-200"} />)}
               </div>
-              <p className="text-slate-600 italic mb-6">"{r.comment}"</p>
-              <p className="text-sm font-bold uppercase tracking-widest text-slate-400">— {r.name}</p>
+              <p className="text-slate-600 text-sm italic mb-6">"{r.comment}"</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">— {r.name}</p>
             </div>
           ))}
-        </div>
+        </Marquee>
+        <Marquee reverse pauseOnHover className="[--duration:25s] mt-4">
+          {reviews.slice(3).map((r, i) => (
+            <div key={i} className="flex-shrink-0 w-[300px] bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 mx-4">
+              <div className="flex gap-1 mb-4 text-yellow-400">
+                {[...Array(5)].map((_, i) => <Star key={i} size={14} fill={i < r.rating ? "currentColor" : "none"} className={i < r.rating ? "" : "text-slate-200"} />)}
+              </div>
+              <p className="text-slate-600 text-sm italic mb-6">"{r.comment}"</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">— {r.name}</p>
+            </div>
+          ))}
+        </Marquee>
+        
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-slate-50 dark:from-background"></div>
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-1/3 bg-gradient-to-l from-slate-50 dark:from-background"></div>
       </div>
     </section>
   );
@@ -373,46 +452,63 @@ const FAQ = () => {
 
 const OfferSection = () => {
   return (
-    <section className="py-24 bg-slate-900 text-white relative overflow-hidden">
-      <div className="absolute top-0 right-0 p-20 bg-arctic-500/20 blur-[100px] rounded-full" />
+    <section className="py-24 bg-slate-950 text-white relative overflow-hidden">
+      <DotPattern 
+        className="opacity-10"
+        width={40}
+        height={40}
+        cr={1.5}
+      />
+      <div className="absolute top-0 right-0 p-40 bg-arctic-500/20 blur-[150px] rounded-full" />
+      <div className="absolute bottom-0 left-0 p-40 bg-purple-500/10 blur-[150px] rounded-full" />
+      
       <div className="max-w-5xl mx-auto px-6 text-center relative z-10">
-        <div className="inline-block px-4 py-1 bg-arctic-500 text-[10px] font-bold uppercase tracking-[0.2em] rounded-full mb-8">
+        <div className="inline-block px-4 py-1.5 bg-arctic-500 text-[10px] font-bold uppercase tracking-[0.2em] rounded-full mb-8 shadow-2xl shadow-arctic-500/50">
           Eid Special Offer
         </div>
-        <h2 className="text-5xl md:text-6xl font-display font-bold mb-6">Grab Yours Before <br /> the Heat Wave Hits</h2>
-        <p className="text-slate-400 mb-10 text-lg">Order now and get 15% off + Free Delivery across Bangladesh.</p>
+        <h2 className="text-5xl md:text-7xl font-display font-bold mb-6 tracking-tight leading-tight">Grab Yours Before <br /> the Heat Wave Hits</h2>
+        <p className="text-slate-400 mb-12 text-lg max-w-2xl mx-auto leading-relaxed">Order now and get 15% off + Free Delivery across Bangladesh. Your personal breeze is just a click away.</p>
         
-        <div className="bg-white/10 backdrop-blur-xl border border-white/10 p-8 md:p-12 rounded-[2.5rem] max-w-2xl mx-auto mb-12">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-8">
+        <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-10 md:p-14 rounded-[3rem] max-w-3xl mx-auto mb-12 shadow-2xl overflow-hidden relative group">
+            <BorderBeam size={400} duration={15} colorFrom="#0ea5e9" colorTo="#8b5cf6" />
+            <div className="flex flex-col md:flex-row justify-between items-center gap-10">
               <div className="text-left">
-                <p className="text-xs font-bold text-arctic-400 uppercase tracking-widest mb-1 text-center md:text-left">Special Price</p>
-                <div className="flex items-center gap-4 justify-center md:justify-start">
-                  <span className="text-5xl font-display font-bold">৳1,450</span>
-                  <span className="text-2xl text-white/30 line-through">৳1,800</span>
+                <p className="text-xs font-bold text-arctic-400 uppercase tracking-[0.3em] mb-2 text-center md:text-left">Limited Time Price</p>
+                <div className="flex items-center gap-6 justify-center md:justify-start">
+                  <BoxReveal boxColor="#0ea5e9" duration={0.8}>
+                    <span className="text-6xl font-display font-bold text-white">৳1,450</span>
+                  </BoxReveal>
+                  <span className="text-3xl text-white/30 line-through decoration-red-500/50">৳1,800</span>
                 </div>
               </div>
-              <button 
+              <ShinyButton 
                 onClick={() => {
                   const el = document.getElementById('order');
                   el?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="w-full md:w-auto bg-white text-slate-900 px-10 py-5 rounded-2xl text-lg font-bold hover:bg-arctic-50 transition-all shadow-xl shadow-white/5"
+                className="w-full md:w-auto bg-white text-slate-950 px-12 py-6 text-xl shadow-2xl hover:scale-105 active:scale-95"
               >
                 Order via COD
-              </button>
+              </ShinyButton>
             </div>
-            <div className="mt-8 flex items-center justify-center gap-6 text-[10px] uppercase font-bold tracking-widest text-white/50">
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-8 text-[10px] uppercase font-bold tracking-[0.2em] text-white/40">
               <div className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-white" />
+                <CheckCircle2 size={16} className="text-green-500" />
                 No Payment Upfront
               </div>
               <div className="flex items-center gap-2">
-                <CheckCircle2 size={14} className="text-white" />
-                Verified Product
+                <CheckCircle2 size={16} className="text-green-500" />
+                Verified Quality
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-green-500" />
+                7-Day Replacement
               </div>
             </div>
         </div>
-        <p className="text-arctic-400 animate-pulse font-bold text-sm">⚠️ High Demand: Only 14 units left for today!</p>
+        <p className="text-white/80 font-bold text-sm tracking-wide">
+          🔥 <span className="text-red-400 uppercase tracking-widest mr-2">High Demand:</span> Only 14 units left for today!
+        </p>
       </div>
     </section>
   );
@@ -590,13 +686,13 @@ const OrderForm = () => {
             </div>
 
             {!isSubmitted && (
-              <button 
+              <ShinyButton 
                 type="submit"
                 disabled={isSubmitting}
-                className={`w-full bg-arctic-500 text-white py-5 rounded-2xl text-xl font-bold hover:bg-arctic-600 transition-all shadow-xl shadow-arctic-100 flex items-center justify-center gap-2 mt-4 ${isSubmitting ? 'opacity-70 cursor-wait' : ''}`}
+                className={`w-full bg-arctic-500 text-white py-5 rounded-2xl text-xl font-bold shadow-xl shadow-arctic-100 flex items-center justify-center gap-2 mt-4 ${isSubmitting ? 'opacity-70 cursor-wait' : ''}`}
               >
                 {isSubmitting ? 'প্রসেসিং হচ্ছে...' : 'অর্ডার করুন'}
-              </button>
+              </ShinyButton>
             )}
 
             {isSubmitted && (
@@ -618,6 +714,7 @@ const OrderForm = () => {
 
 const ProductManagement = () => {
   const [products, setProducts] = useState<SupabaseProduct[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<SupabaseProduct> | null>(null);
@@ -675,26 +772,54 @@ const ProductManagement = () => {
     }
   };
 
+  const filteredProducts = products.filter(p => 
+    p.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    p.slug?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
-        <div>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm gap-4">
+        <div className="w-full md:w-auto">
           <h2 className="font-bold text-xl">Product Catalog</h2>
           <p className="text-sm text-slate-400">Manage your store inventory and pricing.</p>
         </div>
-        <button 
-          onClick={() => { setEditingProduct({ name: '', price: 0, stock_count: 0 }); setIsModalOpen(true); }}
-          className="bg-arctic-500 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-arctic-100 hover:bg-arctic-600 transition-all flex items-center gap-2"
-        >
-          <Plus size={18} /> Add New Product
-        </button>
+        
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto flex-1 md:max-w-md">
+          <div className="relative flex-1">
+            <ShoppingBag className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              type="text"
+              placeholder="Search products by name or slug..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-arctic-500 outline-none text-sm transition-all"
+            />
+            {searchTerm && (
+              <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <button 
+            onClick={() => { setEditingProduct({ name: '', price: 0, stock_count: 0 }); setIsModalOpen(true); }}
+            className="shrink-0 bg-arctic-500 text-white px-6 py-2 rounded-xl text-sm font-bold shadow-lg shadow-arctic-100 hover:bg-arctic-600 transition-all flex items-center justify-center gap-2"
+          >
+            <Plus size={18} /> Add New
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
         {isLoading ? (
           <div className="p-20 text-center text-slate-400">Loading products...</div>
-        ) : products.length === 0 ? (
-          <div className="p-20 text-center text-slate-400">No products found.</div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="p-20 text-center text-slate-400">
+            {searchTerm ? `No products matching "${searchTerm}"` : 'No products found.'}
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -708,7 +833,7 @@ const ProductManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {products.map((p) => (
+                {filteredProducts.map((p) => (
                   <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-5">
                       <div className="flex items-center gap-3">
